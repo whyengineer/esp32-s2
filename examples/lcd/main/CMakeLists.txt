@@ -1,6 +1,11 @@
-set(COMPONENT_SRCS "main.c")
 
-register_component()
+idf_component_register(SRC_DIRS 
+                       "." 
+                       "assets" 
+                       INCLUDE_DIRS  "."
+                       PRIV_INCLUDE_DIRS ""
+                    )
+
 
 # Create a SPIFFS image from the contents of the 'spiffs_image' directory
 # that fits the partition named 'storage'. FLASH_IN_PROJECT indicates that

@@ -21,6 +21,9 @@
 #include "lcd.h"
 #include "jpeg.h"
 #include "board.h"
+#include "lvgl/lvgl.h"
+#include "esp32_lvgl.h"
+#include "lv_demo_benchmark.h"
 
 static const char *TAG = "main";
 
@@ -132,29 +135,32 @@ void esp_color_display(void)
 
 void app_main()
 {
-    lcd_config_t lcd_config = {
-#ifdef CONFIG_LCD_ST7789
-        .clk_fre         = 80 * 1000 * 1000, /*!< ILI9341 Stable frequency configuration */
-#endif
-#ifdef CONFIG_LCD_ILI9341
-        .clk_fre         = 40 * 1000 * 1000, /*!< ILI9341 Stable frequency configuration */
-#endif
-        .pin_clk         = LCD_CLK,
-        .pin_mosi        = LCD_MOSI,
-        .pin_dc          = LCD_DC,
-        .pin_cs          = LCD_CS,
-        .pin_rst         = LCD_RST,
-        .pin_bk          = LCD_BK,
-        .max_buffer_size = 2 * 1024,
-        .horizontal      = 2 /*!< 2: UP, 3: DOWN */
-    };
+//     lcd_config_t lcd_config = {
+// #ifdef CONFIG_LCD_ST7789
+//         .clk_fre         = 80 * 1000 * 1000, /*!< ILI9341 Stable frequency configuration */
+// #endif
+// #ifdef CONFIG_LCD_ILI9341
+//         .clk_fre         = 80 * 1000 * 1000, /*!< ILI9341 Stable frequency configuration */
+// #endif
+//         .pin_clk         = LCD_CLK,
+//         .pin_mosi        = LCD_MOSI,
+//         .pin_dc          = LCD_DC,
+//         .pin_cs          = LCD_CS,
+//         .pin_rst         = LCD_RST,
+//         .pin_bk          = LCD_BK,
+//         .max_buffer_size = 2 * 1024,
+//         .horizontal      = 2 /*!< 2: UP, 3: DOWN */
+//     };
 
-    lcd_init(&lcd_config);
+//     lcd_init(&lcd_config);
 
-    /*< Show a picture */
-    esp_photo_display();
-    /*< RGB display */
-    esp_color_display();
+//     /*< Show a picture */
+//     esp_photo_display();
+//     /*< RGB display */
+//     esp_color_display();
+    xTaskCreate(lvgl_task,"lvgl",8096,NULL,5,NULL);
+    vTaskDelay(1000);
+    lv_demo_benchmark();
 
 }
 

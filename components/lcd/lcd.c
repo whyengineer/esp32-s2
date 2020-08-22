@@ -42,9 +42,11 @@ typedef struct {
     lldesc_t *dma;
     uint8_t *buffer;
     QueueHandle_t event_queue;
+    void (*write_done)();
 } lcd_obj_t;
 
 static lcd_obj_t *lcd_obj = NULL;
+static uint32_t lcd_dma_left = 0;
 
 void static lcd_set_rst(uint8_t state)
 {
@@ -75,7 +77,10 @@ static void IRAM_ATTR lcd_isr(void *arg)
     if (int_st.out_eof) {
         xQueueSendFromISR(lcd_obj->event_queue, (void *)&int_st.val, &HPTaskAwoken);
     }
-
+    lcd_dma_left--;
+    if((lcd_dma_left==0)&&(lcd_obj->write_done!=NULL)){
+        lcd_obj->write_done();
+    }
     if (HPTaskAwoken == pdTRUE) {
         portYIELD_FROM_ISR();
     }
@@ -100,6 +105,10 @@ static void spi_write_data(uint8_t *data, size_t len)
     lcd_obj->dma[lcd_obj->half_node_cnt - 1].empty = 0;
     lcd_obj->dma[lcd_obj->node_cnt - 1].empty = 0;
     cnt = len / lcd_obj->half_buffer_size;
+    lcd_dma_left = cnt ;
+    if(len % lcd_obj->half_buffer_size){
+        lcd_dma_left++;
+    }
     /*!< Start the signal */
     xQueueSend(lcd_obj->event_queue, &event, 0);
 
@@ -598,6 +607,7 @@ int lcd_init(lcd_config_t *config)
     lcd_obj->pin_cs = config->pin_cs;
     lcd_obj->pin_rst = config->pin_rst;
     lcd_obj->pin_bk = config->pin_bk;
+    lcd_obj->write_done = config->lcd_write_done;
     lcd_set_cs(1);
 
     if (lcd_obj->pin_rst <= 46) {

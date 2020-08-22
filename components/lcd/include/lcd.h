@@ -31,6 +31,7 @@ typedef struct {
     uint8_t pin_bk;
     uint8_t horizontal;
     uint32_t max_buffer_size; // DMA used
+    void (*lcd_write_done)();
 } lcd_config_t;
 
 /**
