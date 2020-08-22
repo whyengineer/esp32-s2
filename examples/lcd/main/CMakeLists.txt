@@ -2,6 +2,7 @@
 idf_component_register(SRC_DIRS 
                        "." 
                        "assets" 
+                       "images"
                        INCLUDE_DIRS  "."
                        PRIV_INCLUDE_DIRS ""
                     )

@@ -159,8 +159,30 @@ void app_main()
 //     /*< RGB display */
 //     esp_color_display();
     xTaskCreate(lvgl_task,"lvgl",8096,NULL,5,NULL);
-    vTaskDelay(1000);
-    lv_demo_benchmark();
+    vTaskDelay(2000);
+    // lv_demo_benchmark();
+    lv_obj_t * img = lv_img_create(lv_scr_act(), NULL);
+    // lv_img_set_angle(img,900);
+    LV_IMG_DECLARE(test1);
+    LV_IMG_DECLARE(test2);
+    LV_IMG_DECLARE(test3);
+	/*From variable*/
+    uint8_t cnt=0;
+	while (1)
+    {
+        
+        
+        if(cnt%3==0)
+            lv_img_set_src(img, &test1);
+        else if(cnt%3==1)
+            lv_img_set_src(img, &test2);
+        else
+            lv_img_set_src(img, &test3);
+        cnt++;
+        vTaskDelay(500);
+    }
+    
+	
 
 }
 

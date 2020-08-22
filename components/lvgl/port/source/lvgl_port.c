@@ -13,13 +13,15 @@
 
 
 static lv_disp_buf_t disp_buf;
-static lv_disp_drv_t* s_disp_driver;
+static lv_disp_drv_t* s_disp_driver=NULL;
 
 static void lvgl_tick(){
     lv_tick_inc(1);
 }
 static void IRAM_ATTR lcd_write_done(){
-    lv_disp_flush_ready(s_disp_driver);
+    if(s_disp_driver!=NULL){
+        lv_disp_flush_ready(s_disp_driver);
+    }
 }
 
 static void flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t * color_p)
@@ -31,7 +33,7 @@ static void flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t *
     lcd_write_data((uint8_t *)color_p,len);
     /* IMPORTANT!!!
      * Inform the graphics library that you are ready with the flushing*/
-    lv_disp_flush_ready(disp_drv);
+    //lv_disp_flush_ready(disp_drv);
 }
 
 
@@ -52,7 +54,7 @@ void lvgl_task(void* param){
         .pin_cs          = LCD_CS,
         .pin_rst         = LCD_RST,
         .pin_bk          = LCD_BK,
-        .max_buffer_size = 2 * 1024,
+        .max_buffer_size = 2 * 4096,
         .horizontal      = 2, /*!< 2: UP, 3: DOWN */
         .lcd_write_done =lcd_write_done,
     };
@@ -60,7 +62,7 @@ void lvgl_task(void* param){
 
 
     
-    
+#if 0
     lv_color_t *buf1 = (lv_color_t *)heap_caps_calloc(LV_HOR_RES_MAX * LV_VER_RES_MAX, sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
     lv_color_t *buf2 = (lv_color_t *)heap_caps_calloc(LV_HOR_RES_MAX * LV_VER_RES_MAX, sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
     if((buf1==NULL)||(buf2==NULL)){
@@ -68,6 +70,17 @@ void lvgl_task(void* param){
         vTaskDelete(NULL);
     }
     lv_disp_buf_init(&disp_buf, buf1, buf2, LV_HOR_RES_MAX * LV_VER_RES_MAX);   /*Initialize the display buffer*/
+#else
+    lv_color_t *buf1 = (lv_color_t *)heap_caps_calloc(LV_HOR_RES_MAX * 40, sizeof(lv_color_t), MALLOC_CAP_8BIT);
+    lv_color_t *buf2 = (lv_color_t *)heap_caps_calloc(LV_HOR_RES_MAX * 40, sizeof(lv_color_t), MALLOC_CAP_8BIT);
+    if((buf1==NULL)||(buf2==NULL)){
+        ESP_LOGE(TAG,"calloc failed");
+        vTaskDelete(NULL);
+    }
+    lv_disp_buf_init(&disp_buf, buf1, buf2, LV_HOR_RES_MAX * 40);   /*Initialize the display buffer*/
+
+
+#endif
 
     lv_disp_drv_t disp_drv;                         /*Descriptor of a display driver*/
     lv_disp_drv_init(&disp_drv);                    /*Basic initialization*/

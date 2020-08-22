@@ -35,6 +35,7 @@ typedef struct {
     uint32_t dma_size;
     uint8_t horizontal;
     uint8_t dc_state;
+    uint8_t data_state;
     uint8_t pin_dc;
     uint8_t pin_cs;
     uint8_t pin_rst;
@@ -76,11 +77,14 @@ static void IRAM_ATTR lcd_isr(void *arg)
 
     if (int_st.out_eof) {
         xQueueSendFromISR(lcd_obj->event_queue, (void *)&int_st.val, &HPTaskAwoken);
+        if(lcd_obj->data_state){
+            lcd_dma_left--;
+            if((lcd_dma_left==0)&&(lcd_obj->write_done!=NULL)){
+                lcd_obj->write_done();
+            }
+        }
     }
-    lcd_dma_left--;
-    if((lcd_dma_left==0)&&(lcd_obj->write_done!=NULL)){
-        lcd_obj->write_done();
-    }
+    
     if (HPTaskAwoken == pdTRUE) {
         portYIELD_FROM_ISR();
     }
@@ -177,9 +181,10 @@ void lcd_write_data(uint8_t *data, size_t len)
     if (len <= 0) {
         return;
     }
-
+    lcd_obj->data_state = 1;
     lcd_obj->dc_state = 1;
     spi_write_data(data, len);
+    lcd_obj->data_state = 0;
 }
 
 void lcd_rst()
@@ -608,6 +613,7 @@ int lcd_init(lcd_config_t *config)
     lcd_obj->pin_rst = config->pin_rst;
     lcd_obj->pin_bk = config->pin_bk;
     lcd_obj->write_done = config->lcd_write_done;
+    lcd_obj->data_state = 0;
     lcd_set_cs(1);
 
     if (lcd_obj->pin_rst <= 46) {
