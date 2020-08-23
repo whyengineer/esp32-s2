@@ -118,7 +118,8 @@ static void spi_write_data(uint8_t *data, size_t len)
 
     /*!< Processing a complete piece of data, ping-pong operation */
     for (x = 0; x < cnt; x++) {
-        memcpy((uint8_t *)lcd_obj->dma[(x % 2) * lcd_obj->half_node_cnt].buf, data, lcd_obj->half_buffer_size);
+        // memcpy((uint8_t *)lcd_obj->dma[(x % 2) * lcd_obj->half_node_cnt].buf, data, lcd_obj->half_buffer_size);
+        lcd_obj->dma[(x % 2) * lcd_obj->half_node_cnt].buf=data;
         data += lcd_obj->half_buffer_size;
         xQueueReceive(lcd_obj->event_queue, (void *)&event, portMAX_DELAY);
         GPSPI3.mosi_dlen.usr_mosi_bit_len = lcd_obj->half_buffer_size * 8 - 1;
@@ -132,8 +133,8 @@ static void spi_write_data(uint8_t *data, size_t len)
 
     /*!< Processing remaining incomplete segment data */
     if (cnt) {
-        memcpy((uint8_t *)lcd_obj->dma[(x % 2) * lcd_obj->half_node_cnt].buf, data, cnt);
-
+        // memcpy((uint8_t *)lcd_obj->dma[(x % 2) * lcd_obj->half_node_cnt].buf, data, cnt);
+        lcd_obj->dma[(x % 2) * lcd_obj->half_node_cnt].buf=data;
         /*!< Handle the case where the data length is an integer multiple of lcd_obj->dma_size */
         if (cnt % lcd_obj->dma_size) {
             end_pos = (x % 2) * lcd_obj->half_node_cnt + cnt / lcd_obj->dma_size;
@@ -155,7 +156,6 @@ static void spi_write_data(uint8_t *data, size_t len)
         ets_delay_us(1);
         GPSPI3.cmd.usr = 1;
     }
-
     xQueueReceive(lcd_obj->event_queue, (void *)&event, portMAX_DELAY);
 }
 
@@ -588,7 +588,8 @@ void lcd_dma_config(lcd_config_t *config)
     ESP_LOGI(TAG, "lcd_buffer_size: %d, lcd_dma_size: %d, lcd_dma_node_cnt: %d\n", lcd_obj->buffer_size, lcd_obj->dma_size, lcd_obj->node_cnt);
 
     lcd_obj->dma    = (lldesc_t *)heap_caps_malloc(lcd_obj->node_cnt * sizeof(lldesc_t), MALLOC_CAP_DMA);
-    lcd_obj->buffer = (uint8_t *)heap_caps_malloc(lcd_obj->buffer_size * sizeof(uint8_t), MALLOC_CAP_DMA);
+    // lcd_obj->buffer = (uint8_t *)heap_caps_malloc(lcd_obj->buffer_size * sizeof(uint8_t), MALLOC_CAP_DMA);
+    lcd_obj->buffer = NULL;
 }
 
 int lcd_init(lcd_config_t *config)

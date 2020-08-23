@@ -46,7 +46,7 @@ void lvgl_task(void* param){
         .clk_fre         = 80 * 1000 * 1000, /*!< ILI9341 Stable frequency configuration */
 #endif
 #ifdef CONFIG_LCD_ILI9341
-        .clk_fre         = 40 * 1000 * 1000, /*!< ILI9341 Stable frequency configuration */
+        .clk_fre         = 80 * 1000 * 1000, /*!< ILI9341 Stable frequency configuration */
 #endif
         .pin_clk         = LCD_CLK,
         .pin_mosi        = LCD_MOSI,
@@ -54,7 +54,7 @@ void lvgl_task(void* param){
         .pin_cs          = LCD_CS,
         .pin_rst         = LCD_RST,
         .pin_bk          = LCD_BK,
-        .max_buffer_size = 2 * 4096,
+        .max_buffer_size = 4095*2,
         .horizontal      = 2, /*!< 2: UP, 3: DOWN */
         .lcd_write_done =lcd_write_done,
     };
