@@ -6,6 +6,7 @@ set(EXTRA_COMPONENT_DIRS "../../components/board"
                          "../../components/lcd"
                          "../../components/jpeg"
                          "../../components/lvgl"
+                         "../../components/i2s_parallel"
 )
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
