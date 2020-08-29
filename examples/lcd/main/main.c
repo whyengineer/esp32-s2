@@ -81,7 +81,7 @@ void app_main()
     xTaskCreate(lvgl_task,"lvgl",8096,NULL,5,NULL);
     vTaskDelay(1000);
 
-#if 0
+#if 1
     lv_demo_benchmark();
     vTaskSuspend(NULL);
 #else

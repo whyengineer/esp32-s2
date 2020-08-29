@@ -7,5 +7,12 @@
 			"path": "..\\..\\esp-idf"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"files.associations": {
+			"array": "c",
+			"vector": "c",
+			"xstring": "c",
+			"xutility": "c"
+		}
+	}
 }

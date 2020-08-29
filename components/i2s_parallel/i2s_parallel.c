@@ -14,6 +14,7 @@
 #include "soc/dport_reg.h"
 #include "i2s_parallel.h"
 #include "driver/gpio.h"
+#include "esp_attr.h"
 
 #include "esp_log.h"
 #include "esp_err.h"
@@ -44,7 +45,6 @@ static void IRAM_ATTR _i2s_isr(void *arg)
     }
 
     _i2s_dev->int_clr.val = 0xffffffff;
-    
 }
 
 static inline void _i2s_tx_stop(void)
@@ -83,6 +83,42 @@ static inline void _i2s_dma_start(void)
 
 void i2s_para_write(uint8_t *data, uint32_t len)
 {
+#if 0
+    for (int pos = 0; pos < DMA_LIST_SIZE; pos++) {
+        // printf("ping pang cnt:%d\n",pos);
+        g_i2s_para_obj->dma_list[pos].size = DMA_MAX_NODE_SIZE;
+        g_i2s_para_obj->dma_list[pos].length = DMA_MAX_NODE_SIZE;
+        g_i2s_para_obj->dma_list[pos].buf = data + DMA_MAX_NODE_SIZE * pos;
+        g_i2s_para_obj->dma_list[pos].empty = (uint32_t)&g_i2s_para_obj->dma_list[(pos + 1) % DMA_LIST_SIZE];
+    }
+    g_i2s_para_obj->dma_list[DMA_LIST_SIZE-1].empty = (uint32_t)NULL;
+    int cnt = len / TX_BUFFER_SIZE;
+    for (int bufpos = 0; bufpos < cnt; bufpos++) {
+        _i2s_tx_start();
+    }
+    {
+        _i2s_tx_stop();
+        int end_index = 0;
+        int end_size = 0;
+        g_i2s_para_obj->dma_list[0].buf=data;
+        // memcpy(g_i2s_para_obj->dma_list[0].buf, data, rest_data_size);
+        if(len % DMA_MAX_NODE_SIZE != 0) {
+            end_index = len / DMA_MAX_NODE_SIZE;
+            end_size = len % DMA_MAX_NODE_SIZE;
+        } else {
+            end_index = len / DMA_MAX_NODE_SIZE - 1;
+            end_size = DMA_MAX_NODE_SIZE;
+        }
+        g_i2s_para_obj->dma_list[end_index].size = end_size;
+        g_i2s_para_obj->dma_list[end_index].length = end_size;
+        g_i2s_para_obj->dma_list[end_index].eof = 1;
+        g_i2s_para_obj->dma_list[end_index].empty = (uint32_t)NULL;
+        _i2s_dev->out_link.addr = ((uint32_t)&g_i2s_para_obj->dma_list[0]);
+        _i2s_tx_start();
+        xSemaphoreTake(g_i2s_para_obj->i2s_tx_sem, portMAX_DELAY);
+        // while (!_i2s_dev->state.tx_idle);
+    }
+#else
     const static int dma_half_index = DMA_LIST_SIZE / 2 - 1;
     const static int dma_last_index = DMA_LIST_SIZE - 1;
     const static int txbuf_half_size = TX_BUFFER_SIZE / 2;
@@ -90,7 +126,7 @@ void i2s_para_write(uint8_t *data, uint32_t len)
         // printf("ping pang cnt:%d\n",pos);
         g_i2s_para_obj->dma_list[pos].size = DMA_MAX_NODE_SIZE;
         g_i2s_para_obj->dma_list[pos].length = DMA_MAX_NODE_SIZE;
-        g_i2s_para_obj->dma_list[pos].buf = (g_i2s_para_obj->i2s_tx_buf + DMA_MAX_NODE_SIZE * pos);
+        g_i2s_para_obj->dma_list[pos].buf = data + DMA_MAX_NODE_SIZE * pos;
         if(pos == dma_half_index || pos == dma_last_index) {
             g_i2s_para_obj->dma_list[pos].eof = 1;
         } else {
@@ -104,19 +140,20 @@ void i2s_para_write(uint8_t *data, uint32_t len)
     int cnt = len / txbuf_half_size;
     for (int bufpos = 0; bufpos < cnt; bufpos++) {
         _i2s_tx_stop();
-        memcpy(g_i2s_para_obj->dma_list[(bufpos % 2) * (dma_half_index+1)].buf, data, txbuf_half_size);
+        // memcpy(g_i2s_para_obj->dma_list[(bufpos % 2) * (dma_half_index+1)].buf, data, txbuf_half_size);
         data += txbuf_half_size;
-        // xSemaphoreTake(g_i2s_para_obj->i2s_tx_sem, portMAX_DELAY);
         _i2s_dev->out_link.addr = ((uint32_t)&g_i2s_para_obj->dma_list[(bufpos % 2) * (dma_half_index+1)]);
         _i2s_tx_start();
-        while (!_i2s_dev->state.tx_idle);
+        xSemaphoreTake(g_i2s_para_obj->i2s_tx_sem, portMAX_DELAY);
+        // while (!_i2s_dev->state.tx_idle);
     }
     int rest_data_size = len % txbuf_half_size;
     if (rest_data_size) {
         _i2s_tx_stop();
         int end_index = 0;
         int end_size = 0;
-        memcpy(g_i2s_para_obj->dma_list[0].buf, data, rest_data_size);
+        g_i2s_para_obj->dma_list[0].buf=data;
+        // memcpy(g_i2s_para_obj->dma_list[0].buf, data, rest_data_size);
         if(rest_data_size % DMA_MAX_NODE_SIZE != 0) {
             end_index = rest_data_size / DMA_MAX_NODE_SIZE;
             end_size = rest_data_size % DMA_MAX_NODE_SIZE;
@@ -129,10 +166,11 @@ void i2s_para_write(uint8_t *data, uint32_t len)
         g_i2s_para_obj->dma_list[end_index].eof = 1;
         g_i2s_para_obj->dma_list[end_index].empty = (uint32_t)NULL;
         _i2s_dev->out_link.addr = ((uint32_t)&g_i2s_para_obj->dma_list[0]);
-        xSemaphoreTake(g_i2s_para_obj->i2s_tx_sem, portMAX_DELAY);
         _i2s_tx_start();
-        while (!_i2s_dev->state.tx_idle);
+        xSemaphoreTake(g_i2s_para_obj->i2s_tx_sem, portMAX_DELAY);
+        // while (!_i2s_dev->state.tx_idle);
     }
+#endif
 }
 
 static inline void _i2s_gpio_init(void)
@@ -200,12 +238,12 @@ static esp_err_t _i2s_para_driver_init(void)
     _i2s_dev->int_ena.out_total_eof = 1;
     return ESP_OK;
 }
-static void lcd_write_cmd(uint8_t data){
+static void IRAM_ATTR lcd_write_cmd(uint8_t data){
     gpio_set_level(g_i2s_para_obj->conf.pin_rs, 0);
     i2s_para_write(&data,1);
 }
 
-static void lcd_write_data(uint8_t data){
+static void IRAM_ATTR lcd_write_data(uint8_t data){
     gpio_set_level(g_i2s_para_obj->conf.pin_rs, 1);
     i2s_para_write(&data,1);
 }
@@ -796,11 +834,11 @@ esp_err_t i2s_parallel_init(i2s_parallel_config_t *config)
 
     g_i2s_para_obj = (i2s_parallel_obj_t *)heap_caps_calloc(1, sizeof(i2s_parallel_obj_t), MALLOC_CAP_DMA);
     g_i2s_para_obj->dma_list = (lldesc_t *)heap_caps_calloc(DMA_LIST_SIZE, sizeof(lldesc_t), MALLOC_CAP_DMA);
-    g_i2s_para_obj->i2s_tx_buf = (uint8_t *)heap_caps_calloc(TX_BUFFER_SIZE, sizeof(uint8_t), MALLOC_CAP_DMA);
+    //g_i2s_para_obj->i2s_tx_buf = (uint8_t *)heap_caps_calloc(TX_BUFFER_SIZE, sizeof(uint8_t), MALLOC_CAP_DMA);
 
     g_i2s_para_obj->i2s_tx_sem = xSemaphoreCreateBinary();
     if(g_i2s_para_obj == NULL || g_i2s_para_obj->dma_list == NULL
-        ||  g_i2s_para_obj->i2s_tx_buf == NULL || g_i2s_para_obj->i2s_tx_sem == NULL) {
+        || g_i2s_para_obj->i2s_tx_sem == NULL) {
         ESP_LOGE(TAG, "have no enough memery");
         return ESP_ERR_NO_MEM;
     }

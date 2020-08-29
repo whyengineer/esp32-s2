@@ -36,7 +36,7 @@
 
 /* Swap the 2 bytes of RGB565 color.
  * Useful if the display has a 8 bit interface (e.g. SPI)*/
-#define LV_COLOR_16_SWAP   0
+#define LV_COLOR_16_SWAP   1
 
 /* 1: Enable screen transparency.
  * Useful for OSD or other overlapping GUIs.
@@ -250,7 +250,7 @@ typedef void * lv_img_decoder_user_data_t;
 #define LV_ATTRIBUTE_TASK_HANDLER
 
 /* Define a custom attribute to `lv_disp_flush_ready` function */
-#define LV_ATTRIBUTE_FLUSH_READY IRAM_ATTR
+#define LV_ATTRIBUTE_FLUSH_READY
 
 /* With size optimization (-Os) the compiler might not align data to
  * 4 or 8 byte boundary. This alignment will be explicitly applied where needed.
