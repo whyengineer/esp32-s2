@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "..\\..\\esp-idf"
+		},
+		{
+			"path": "..\\..\\esp32s2-ulp-standalone"
 		}
 	],
 	"settings": {
@@ -12,7 +15,8 @@
 			"array": "c",
 			"vector": "c",
 			"xstring": "c",
-			"xutility": "c"
+			"xutility": "c",
+			"*.ipp": "c"
 		}
 	}
 }

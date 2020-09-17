@@ -22,8 +22,12 @@ typedef struct {
 
 void i2s_para_write(uint8_t *data, uint32_t len);
 esp_err_t i2s_parallel_init(i2s_parallel_config_t *config);
-void lcdp_set_index(uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t y_end);
+
+
 void lcdp_write_data(uint8_t *data, size_t len);
+void lcdp_write_data_async(uint8_t *data, size_t len);
+void  lcdp_write_cmd(uint16_t data);
+void  lcdp_write_data_one(uint16_t data);
 #ifdef __cplusplus
 }
 #endif

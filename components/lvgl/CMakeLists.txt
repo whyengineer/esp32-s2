@@ -12,6 +12,6 @@ idf_component_register(SRC_DIRS
                        INCLUDE_DIRS "port/include" "."
                        PRIV_INCLUDE_DIRS ""
                        PRIV_REQUIRES "driver"
-                       REQUIRES "lcd" "board" "i2s_parallel")
+                       REQUIRES "lcd" "board")
 
 target_compile_options(${COMPONENT_LIB} PUBLIC -DLV_CONF_INCLUDE_SIMPLE)
