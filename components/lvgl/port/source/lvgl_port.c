@@ -50,8 +50,8 @@ void lvgl_task_init(){
     lv_init();
     esp_register_freertos_tick_hook_for_cpu(lvgl_tick,0);
 
-    lv_color_t *buf1 = (lv_color_t *)heap_caps_calloc(LV_HOR_RES_MAX * 50, sizeof(lv_color_t), MALLOC_CAP_8BIT);
-    lv_color_t *buf2 = (lv_color_t *)heap_caps_calloc(LV_HOR_RES_MAX * 50, sizeof(lv_color_t), MALLOC_CAP_8BIT);
+    lv_color_t *buf1 = (lv_color_t *)heap_caps_calloc(LV_HOR_RES_MAX * 50, sizeof(lv_color_t), MALLOC_CAP_32BIT);
+    lv_color_t *buf2 = (lv_color_t *)heap_caps_calloc(LV_HOR_RES_MAX * 50, sizeof(lv_color_t), MALLOC_CAP_32BIT);
     if((buf1==NULL)||(buf2==NULL)){
         ESP_LOGE(TAG,"calloc failed");
         abort();

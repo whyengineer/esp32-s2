@@ -269,13 +269,44 @@ static esp_err_t _i2s_para_driver_init(void)
 void  lcdp_write_cmd(uint16_t data){
 	g_i2s_para_obj->sync=true;
     gpio_set_level(g_i2s_para_obj->conf.pin_rs, 0);
-    i2s_para_write((uint8_t*)&data,2);
+#if 0
+	i2s_para_write((uint8_t*)&data,2);
+#else
+	_i2s_dev->int_ena.out_total_eof = 0;
+	_i2s_tx_stop(); 
+	g_i2s_para_obj->dma_list[0].buf=(uint8_t*)&data;
+	g_i2s_para_obj->dma_list[0].size = 2;
+	g_i2s_para_obj->dma_list[0].length = 2;
+	g_i2s_para_obj->dma_list[0].eof = 1;
+	g_i2s_para_obj->dma_list[0].empty = (uint32_t)NULL;
+	_i2s_dev->out_link.addr = ((uint32_t)&g_i2s_para_obj->dma_list[0]);
+	_i2s_tx_start();
+	while (!_i2s_dev->state.tx_idle);
+	_i2s_dev->int_clr.val = 0xffffffff;
+	_i2s_dev->int_ena.out_total_eof = 1;
+#endif
 }
 
 void  lcdp_write_data_one(uint16_t data){
 	g_i2s_para_obj->sync=true;
     gpio_set_level(g_i2s_para_obj->conf.pin_rs, 1);
-    i2s_para_write((uint8_t*)&data,2);
+#if 0
+	i2s_para_write((uint8_t*)&data,2);
+#else
+	_i2s_dev->int_ena.out_total_eof = 0;
+	_i2s_tx_stop(); 
+	g_i2s_para_obj->dma_list[0].buf=(uint8_t*)&data;
+	g_i2s_para_obj->dma_list[0].size = 2;
+	g_i2s_para_obj->dma_list[0].length = 2;
+	g_i2s_para_obj->dma_list[0].eof = 1;
+	g_i2s_para_obj->dma_list[0].empty = (uint32_t)NULL;
+	_i2s_dev->out_link.addr = ((uint32_t)&g_i2s_para_obj->dma_list[0]);
+	_i2s_tx_start();
+	while (!_i2s_dev->state.tx_idle);
+	_i2s_dev->int_clr.val = 0xffffffff;
+	_i2s_dev->int_ena.out_total_eof = 1;
+    //xSemaphoreTake(g_i2s_para_obj->i2s_tx_sem, portMAX_DELAY);
+#endif
 }
 
 
