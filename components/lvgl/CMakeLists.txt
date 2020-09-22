@@ -14,4 +14,4 @@ idf_component_register(SRC_DIRS
                        PRIV_REQUIRES "driver"
                        REQUIRES "lcd" "board")
 
-target_compile_options(${COMPONENT_LIB} PUBLIC -DLV_CONF_INCLUDE_SIMPLE)
+target_compile_options(${COMPONENT_LIB} PUBLIC -DLV_CONF_INCLUDE_SIMPLE -Os)

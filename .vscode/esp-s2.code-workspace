@@ -16,7 +16,23 @@
 			"vector": "c",
 			"xstring": "c",
 			"xutility": "c",
-			"*.ipp": "c"
+			"*.ipp": "c",
+			"codecvt": "cpp",
+			"cstddef": "cpp",
+			"functional": "cpp",
+			"limits": "cpp",
+			"map": "cpp",
+			"memory": "cpp",
+			"mutex": "cpp",
+			"system_error": "cpp",
+			"unordered_map": "cpp",
+			"xhash": "cpp",
+			"xiosbase": "cpp",
+			"xlocale": "cpp",
+			"xlocbuf": "cpp",
+			"xlocmon": "cpp",
+			"xloctime": "cpp",
+			"xtree": "cpp"
 		}
 	}
 }

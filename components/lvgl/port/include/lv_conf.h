@@ -250,7 +250,7 @@ typedef void * lv_img_decoder_user_data_t;
 #define LV_ATTRIBUTE_TASK_HANDLER
 
 /* Define a custom attribute to `lv_disp_flush_ready` function */
-#define LV_ATTRIBUTE_FLUSH_READY
+#define LV_ATTRIBUTE_FLUSH_READY IRAM_ATTR
 
 /* With size optimization (-Os) the compiler might not align data to
  * 4 or 8 byte boundary. This alignment will be explicitly applied where needed.
@@ -263,7 +263,7 @@ typedef void * lv_img_decoder_user_data_t;
 
 /* Prefix performance critical functions to place them into a faster memory (e.g RAM)
  * Uses 15-20 kB extra memory */
-#define LV_ATTRIBUTE_FAST_MEM
+#define LV_ATTRIBUTE_FAST_MEM IRAM_ATTR
 
 /* Export integer constant to binding.
  * This macro is used with constants in the form of LV_<CONST> that

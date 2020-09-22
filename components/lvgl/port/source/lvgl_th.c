@@ -6,6 +6,7 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "string.h"
+#include "lvgl/lvgl.h"
 
 #define TAG "touch"
 
@@ -56,9 +57,9 @@ const uint8_t GT9147_CFG_TBL[]=
 	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xF6,
 	0xFF,0xFF,0xFF,0xFF,0xCB,0x01,
 };
-
+#ifdef TP_INT_MODE
 static SemaphoreHandle_t thEvt;
-
+#endif
 
 static esp_err_t th_read(uint16_t reg_addr,uint8_t *data_rd, size_t size)
 {
@@ -101,13 +102,36 @@ static esp_err_t th_write(uint16_t reg_addr,uint8_t *data_wr, size_t size)
 
     return ret;
 }
-
+#ifdef TP_INT_MODE
 static void IRAM_ATTR gpio_isr_handler(void* arg)
 {
     xSemaphoreGiveFromISR(thEvt,NULL);
 }
+#endif
 
-
+static bool my_input_read(lv_indev_drv_t * drv, lv_indev_data_t*data)
+{
+    static uint16_t point[2];
+    uint8_t mode;
+    uint8_t tmp;
+    bool valid=false;
+    th_read(GT_GSTID_REG,&mode,1);	//读取触摸点的状态  
+    if(mode&0X80&&((mode&0XF)<6)){
+        valid=true;
+        tmp=0;
+        th_write(GT_GSTID_REG,&tmp,1);
+        if((mode&0xf)>0){
+            th_read(GT9147_TPX_TBL[0],(uint8_t*)point,4);	//读取XY坐标值
+            data->state=LV_INDEV_STATE_PR;
+        }else{
+            data->state=LV_INDEV_STATE_REL;
+        }
+    }
+    data->point.x = point[1];
+    data->point.y = 480-point[0];
+    // ESP_LOGI(TAG,"x:%d,y:%d",data->point.x,data->point.y);
+    return valid; /*No buffering now so no more data read*/
+}
 // //扫描触摸屏(采用查询方式)
 // //mode:0,正常扫描.
 // //返回值:当前触屏状态.
@@ -196,7 +220,7 @@ static void IRAM_ATTR gpio_isr_handler(void* arg)
 // 	if(t>240)t=10;//重新从10开始计数
 // 	return res;
 // }
-
+#if TP_INT_MODE
 static void th_task(void* arg)
 {
     uint8_t th_num;
@@ -224,7 +248,7 @@ static void th_task(void* arg)
         }
     }
 }
-
+#endif
 
 esp_err_t th_init(){
     
@@ -233,6 +257,7 @@ esp_err_t th_init(){
     esp_err_t err=ESP_OK;
     int i2c_master_port = I2C_INST;
     i2c_config_t conf;
+#ifdef TP_INT_MODE
     thEvt = xSemaphoreCreateBinary();
     xSemaphoreTake(thEvt,0);
 
@@ -244,7 +269,14 @@ esp_err_t th_init(){
     gpio_config(&io_conf);
     gpio_install_isr_service(0);
     gpio_isr_handler_add(TH_INT_PIN, gpio_isr_handler, (void*) TH_INT_PIN);
-
+#else
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.pin_bit_mask = (1ULL << TH_INT_PIN);
+    io_conf.pull_down_en = 0;
+    io_conf.pull_up_en = 0;
+    gpio_config(&io_conf);
+#endif
     conf.mode = I2C_MODE_MASTER;
     conf.sda_io_num = 11;
     conf.sda_pullup_en = GPIO_PULLUP_DISABLE;
@@ -287,7 +319,14 @@ esp_err_t th_init(){
         // id[0]=(~id[0])+1;
         // th_write(GT_CHECK_REG,id,2);
     }
+#ifdef TP_INT_MODE
     xTaskCreate(th_task, "th_task", 2048, NULL, 5, NULL);
-
+#endif
+    lv_indev_drv_t indev_drv;
+    /*Register a touchpad input device*/
+    lv_indev_drv_init(&indev_drv);
+    indev_drv.type = LV_INDEV_TYPE_POINTER;
+    indev_drv.read_cb = my_input_read;
+    lv_indev_drv_register(&indev_drv);
     return err;
 }

@@ -53,7 +53,7 @@
 #define  RD    GPIO_NUM_2
 
 void app_main()
-{
+{   
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_OUTPUT;
@@ -69,7 +69,7 @@ void app_main()
         .bit_width = 16,
         .pin_clk = CLK,
         .pin_num = pin,
-        .ws_clk_div  = 2 ,
+        .ws_clk_div  = 2 , //50/(2*2)
         .pin_cs = CS,
         .pin_rst = RST,
         .pin_rd = RD,
@@ -79,33 +79,24 @@ void app_main()
     ESP_ERROR_CHECK(i2s_parallel_init(&i2s_parallel_bus));
     jd5858_init();
     ESP_LOGI(TAG,"i2s parallel init ok");
-    th_init();
     lvgl_task_init();
-#if 1
+    th_init();
+#if 0
     lv_demo_benchmark();
     vTaskSuspend(NULL);
 #else
     lv_obj_t * img = lv_img_create(lv_scr_act(), NULL);
     // lv_img_set_angle(img,900);
-    LV_IMG_DECLARE(img1);
-    LV_IMG_DECLARE(img2);
-    LV_IMG_DECLARE(img3);
-    LV_IMG_DECLARE(img4);
-    LV_IMG_DECLARE(img5);
+    LV_IMG_DECLARE(page1);
+    LV_IMG_DECLARE(page2);
 	/*From variable*/
     uint8_t cnt=0;
 	while (1)
     {
-        if(cnt%5==0)
-            lv_img_set_src(img, &img1);
-        else if(cnt%5==1)
-            lv_img_set_src(img, &img2);
-        else if(cnt%5==2)
-            lv_img_set_src(img, &img3);
-        else if(cnt%5==3)
-            lv_img_set_src(img, &img4);
-        else
-            lv_img_set_src(img, &img5);
+        if(cnt%2==0)
+            lv_img_set_src(img, &page1);
+        else if(cnt%2==1)
+            lv_img_set_src(img, &page2);
         cnt++;
         vTaskDelay(500);
     }

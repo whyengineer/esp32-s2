@@ -228,9 +228,9 @@ static inline void _i2s_reg_init(void)
     _i2s_dev->clkm_conf.clk_en = 1;
     _i2s_dev->clkm_conf.clk_sel = 2;
     //F_i2s = F_i2s_clk_s / (N + b/a)    N-->clkm_div_num,b-->clkm_div_b,a-->clkm_div_a
-    _i2s_dev->clkm_conf.clkm_div_num = 2;
-    _i2s_dev->clkm_conf.clkm_div_b = 0;
-    _i2s_dev->clkm_conf.clkm_div_a = 63;
+    _i2s_dev->clkm_conf.clkm_div_num = 3;
+    _i2s_dev->clkm_conf.clkm_div_b = 4;
+    _i2s_dev->clkm_conf.clkm_div_a = 20;
     _i2s_dev->sample_rate_conf.val = 0;
     _i2s_dev->sample_rate_conf.tx_bck_div_num = g_i2s_para_obj->conf.ws_clk_div;
 
