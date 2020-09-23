@@ -26,6 +26,8 @@
 #include "lv_demo_benchmark.h"
 #include "i2s_parallel.h"
 #include "jd5858.h"
+#include <nvs_flash.h>
+#include <app_wifi.h>
 
 #define TAG "main"
 //gpio
@@ -54,6 +56,15 @@
 
 void app_main()
 {   
+    /* Initialize NVS. */
+    esp_err_t err = nvs_flash_init();
+    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK( err );
+
+
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_OUTPUT;
@@ -86,6 +97,13 @@ void app_main()
     vTaskSuspend(NULL);
 #else
     lv_obj_t * img = lv_img_create(lv_scr_act(), NULL);
+    
+
+    /* Initialize Wi-Fi. Note that, this should be called before esp_rmaker_init()
+     */
+    app_wifi_init();
+
+
     // lv_img_set_angle(img,900);
     LV_IMG_DECLARE(page1);
     LV_IMG_DECLARE(page2);

@@ -1,3 +1,6 @@
 [submodule "components/lvgl/lvgl"]
 	path = components/lvgl/lvgl
 	url = https://github.com/lvgl/lvgl.git
+[submodule "esp-rainmaker"]
+	path = esp-rainmaker
+	url = https://github.com/espressif/esp-rainmaker.git
