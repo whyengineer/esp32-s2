@@ -32,7 +32,10 @@
 			"xlocbuf": "cpp",
 			"xlocmon": "cpp",
 			"xloctime": "cpp",
-			"xtree": "cpp"
+			"xtree": "cpp",
+			"*.inc": "c",
+			"string": "c",
+			"string_view": "c"
 		}
 	}
 }
