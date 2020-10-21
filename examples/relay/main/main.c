@@ -103,17 +103,17 @@ void app_main(void)
         adc_reading = adc1_get_raw((adc1_channel_t)ADC_DET_1);
         //Convert adc_reading to voltage in mV
         voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
-        printf("ADC1:Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
+        //printf("ADC1:Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
         //2
         adc_reading = adc1_get_raw((adc1_channel_t)ADC_DET_2);
         //Convert adc_reading to voltage in mV
         voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
-        printf("ADC2:Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
+        //printf("ADC2:Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
         //3
         adc_reading = adc1_get_raw((adc1_channel_t)ADC_DET_3);
         //Convert adc_reading to voltage in mV
         voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
-        printf("ADC3:Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
-        vTaskDelay(pdMS_TO_TICKS(100));
+        //printf("ADC3:Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
