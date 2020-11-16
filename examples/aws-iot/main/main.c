@@ -99,16 +99,22 @@ extern const uint8_t private_pem_key_end[] asm("_binary_private_pem_key_end");
 #define ADC_DET_2 ADC_CHANNEL_1
 #define ADC_DET_3 ADC_CHANNEL_2
 
+#define NO_OF_SAMPLES 100
+
 
 static esp_adc_cal_characteristics_t *adc_chars;
+static AWS_IoT_Client client;
+static bool lightChange=false;
+static uint8_t slight[3]={0,0,0};
+static uint8_t ioStatue[3]={0,0,0};
 
-
+static char *create_state(uint8_t* lightVal,uint8_t size);
 
 /**
  * @brief Default MQTT HOST URL is pulled from the aws_iot_config.h
  */
-char HostAddress[255] = "aojy38nz36dqy-ats.iot.ap-east-1.amazonaws.com";
-
+char HostAddress[255] = "a2kob4few2zw49-ats.iot.cn-northwest-1.amazonaws.com.cn";
+char cPayload[1024];
 /**
  * @brief Default MQTT port is pulled from the aws_iot_config.h
  */
@@ -135,21 +141,56 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
+static void publish_led(){
+    
+    IoT_Publish_Message_Params paramsQOS0;
+    paramsQOS0.qos = QOS0;
+    paramsQOS0.isRetained = 0;
+    const char *PUB_TOPIC = "stepiot/state/1259014452121047040/1263376536367665152/5f69b964480ec95b35a28b42";
+    const int PUB_TOPIC_LEN = strlen("stepiot/state/1259014452121047040/1263376536367665152/5f69b964480ec95b35a28b42");
+    char* payload=create_state(slight,3);
+    uint32_t len=strlen(payload);
+    if(payload!=NULL){
+        memcpy(cPayload,payload,len);
+        free(payload);
+        paramsQOS0.payloadLen = len;
+        paramsQOS0.payload = (void *) cPayload;
+        aws_iot_mqtt_publish(&client,PUB_TOPIC, PUB_TOPIC_LEN, &paramsQOS0);
+        // ESP_LOGI(TAG,"%s",payload); 
+    }
+}
 
-void iot_subscribe_callback_handler(AWS_IoT_Client *pClient, char *topicName, uint16_t topicNameLen,
+
+static void iot_subscribe_callback_handler(AWS_IoT_Client *pClient, char *topicName, uint16_t topicNameLen,
                                     IoT_Publish_Message_Params *params, void *pData) {
     ESP_LOGI(TAG, "Subscribe callback");
     ESP_LOGI(TAG, "%.*s\t%.*s", topicNameLen, topicName, (int) params->payloadLen, (char *)params->payload);
     cJSON *root=NULL;
     root= cJSON_Parse(params->payload);
-    uint8_t relay1=cJSON_GetObjectItem(root,"relay1")->valueint;
-    uint8_t relay2=cJSON_GetObjectItem(root,"relay2")->valueint;
-    uint8_t relay3=cJSON_GetObjectItem(root,"relay3")->valueint;
-    gpio_set_level(RELAY_CTRL_1_PIN, relay1);
-    gpio_set_level(RELAY_CTRL_2_PIN, relay2);
-    gpio_set_level(RELAY_CTRL_3_PIN, relay3);
-    ESP_LOGI(TAG,"relay:%d,%d,%d",relay1,relay2,relay3);
+    cJSON *cmd=cJSON_GetObjectItem(root,"cmd");
+    uint8_t cmdSize=cJSON_GetArraySize(cmd);
+    ESP_LOGI(TAG,"cmd size:%d",cmdSize);
+    for(int i=0;i<cmdSize;i++){
+        cJSON* cmdItem=cJSON_GetArrayItem(cmd,i);
+        int circuit=cJSON_GetObjectItem(cmdItem,"circuit")->valueint;
+        int light=cJSON_GetObjectItem(cmdItem,"light")->valueint;
+        if(light!=slight[circuit-1]){
+            slight[circuit-1]=light;
+            if(circuit==1){
+                gpio_set_level(RELAY_CTRL_1_PIN, ioStatue[circuit-1]%2);
+            }else if(circuit==2){
+                gpio_set_level(RELAY_CTRL_2_PIN, ioStatue[circuit-1]%2);
+            }else if(circuit==3){
+                gpio_set_level(RELAY_CTRL_3_PIN, ioStatue[circuit-1]%2);
+            }else{
+                ESP_LOGE(TAG,"error circuit:%d",circuit);
+            }
+            ioStatue[circuit-1]++;
+        }
+       
+    }
     cJSON_Delete(root);
+    publish_led();
 }
 
 void disconnectCallbackHandler(AWS_IoT_Client *pClient, void *data) {
@@ -202,33 +243,66 @@ static void adc_init(){
     }
 }
 
-static void gpio_task_example(void* arg)
+static void adc_task(void* arg)
 {
-    uint32_t cnt=0;
-    for(;;) {
+    int status;
+    uint8_t index;
+    uint32_t voltage;
+    uint32_t adc_reading;
+    check_efuse();
+    adc_init();
+    int cnt=0;
+    adc1_channel_t channel;
+    //Continuously sample ADC1
+    while (1) {
+        index=cnt%3;
+        if(index==0){
+            channel=ADC_DET_1;
+        }else if(index==1){
+            channel=ADC_DET_2;
+        }else{
+            channel=ADC_DET_3;
+        }
+        adc_reading=0;
+        for (int i = 0; i < NO_OF_SAMPLES; i++) {
+                adc_reading += adc1_get_raw(channel);
+                // vTaskDelay(pdMS_TO_TICKS(10));
+        }
+        adc_reading /= NO_OF_SAMPLES;
+        
+        //Convert adc_reading to voltage in mV
+        voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
+        if(voltage<846){
+            status=1;
+        }else{
+            status=0;
+        }
+        if(slight[index]!=status){
+            slight[index]=status;
+            lightChange=true;
+            ESP_LOGI(TAG,"status change,index:%d,light:%d",index,status);
+        }
+        printf("ADC%d:Raw: %d\tVoltage: %dmV\n", index,adc_reading, voltage);
+        vTaskDelay(pdMS_TO_TICKS(500));
         cnt++;
-        vTaskDelay(5000 / portTICK_RATE_MS);
-        // gpio_set_level(RELAY_CTRL_1_PIN, cnt % 2);
-        // gpio_set_level(RELAY_CTRL_2_PIN, cnt % 2);
-        // gpio_set_level(RELAY_CTRL_3_PIN, cnt % 2);
-        gpio_set_level(LED_JOB, cnt % 2);
-        gpio_set_level(LED_WIFI, cnt % 2);
     }
 }
 
+
 void aws_iot_task(void *param) {
-    char cPayload[100];
+    
+    
+    
     esp_log_level_set("aws_iot",ESP_LOG_VERBOSE);
     int32_t i = 0;
 
     IoT_Error_t rc = FAILURE;
 
-    AWS_IoT_Client client;
+    
     IoT_Client_Init_Params mqttInitParams = iotClientInitParamsDefault;
     IoT_Client_Connect_Params connectParams = iotClientConnectParamsDefault;
 
-    IoT_Publish_Message_Params paramsQOS0;
-    IoT_Publish_Message_Params paramsQOS1;
+    
 
     ESP_LOGI(TAG, "AWS IoT SDK Version %d.%d.%d-%s", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TAG);
 
@@ -262,8 +336,8 @@ void aws_iot_task(void *param) {
     connectParams.isCleanSession = true;
     connectParams.MQTTVersion = MQTT_3_1_1;
     /* Client ID is set in the menuconfig of the example */
-    connectParams.pClientID = "esp32-test11";
-    connectParams.clientIDLen = (uint16_t) strlen("esp32-test11");
+    connectParams.pClientID = "5f69b964480ec95b35a28b42";
+    connectParams.clientIDLen = (uint16_t) strlen("5f69b964480ec95b35a28b42");
     connectParams.isWillMsgPresent = false;
 
     ESP_LOGI(TAG, "Connecting to AWS...");
@@ -275,6 +349,8 @@ void aws_iot_task(void *param) {
         }
     } while(SUCCESS != rc);
 
+
+    //
     /*
      * Enable Auto Reconnect functionality. Minimum and Maximum time of Exponential backoff are set in aws_iot_config.h
      *  #AWS_IOT_MQTT_MIN_RECONNECT_WAIT_INTERVAL
@@ -286,8 +362,10 @@ void aws_iot_task(void *param) {
         abort();
     }
 
-    const char *TOPIC = "test_topic/esp32";
-    const int TOPIC_LEN = strlen(TOPIC);
+    const char *TOPIC = "stepiot/data/1259014452121047040/1263376536367665152/5f69b964480ec95b35a28b42";
+    const int TOPIC_LEN = strlen("stepiot/data/1259014452121047040/1263376536367665152/5f69b964480ec95b35a28b42");
+
+    
 
     ESP_LOGI(TAG, "Subscribing...");
     rc = aws_iot_mqtt_subscribe(&client, TOPIC, TOPIC_LEN, QOS0, iot_subscribe_callback_handler, NULL);
@@ -296,15 +374,7 @@ void aws_iot_task(void *param) {
         abort();
     }
 
-    sprintf(cPayload, "%s : %d ", "hello from SDK", i);
-
-    paramsQOS0.qos = QOS0;
-    paramsQOS0.payload = (void *) cPayload;
-    paramsQOS0.isRetained = 0;
-
-    paramsQOS1.qos = QOS1;
-    paramsQOS1.payload = (void *) cPayload;
-    paramsQOS1.isRetained = 0;
+    // xTaskCreate(publish_task, "publish_task", 4096, NULL, 9, NULL);
 
     while((NETWORK_ATTEMPTING_RECONNECT == rc || NETWORK_RECONNECTED == rc || SUCCESS == rc)) {
 
@@ -314,25 +384,19 @@ void aws_iot_task(void *param) {
             // If the client is attempting to reconnect we will skip the rest of the loop.
             continue;
         }
-
+        if(lightChange){
+            publish_led();
+            lightChange=false;
+        }
         // ESP_LOGI(TAG, "Stack remaining for task '%s' is %d bytes", pcTaskGetTaskName(NULL), uxTaskGetStackHighWaterMark(NULL));
         vTaskDelay(1000 / portTICK_RATE_MS);
-        // sprintf(cPayload, "%s : %d ", "hello from ESP32 (QOS0)", i++);
-        // paramsQOS0.payloadLen = strlen(cPayload);
-        // rc = aws_iot_mqtt_publish(&client, TOPIC, TOPIC_LEN, &paramsQOS0);
-
-        // sprintf(cPayload, "%s : %d ", "hello from ESP32 (QOS1)", i++);
-        // paramsQOS1.payloadLen = strlen(cPayload);
-        // rc = aws_iot_mqtt_publish(&client, TOPIC, TOPIC_LEN, &paramsQOS1);
-        // if (rc == MQTT_REQUEST_TIMEOUT_ERROR) {
-        //     ESP_LOGW(TAG, "QOS1 publish ack not received.");
-        //     rc = SUCCESS;
-        // }
+        
     }
 
     ESP_LOGE(TAG, "An error occurred in the main loop.");
     abort();
 }
+
 
 static void initialise_wifi(void)
 {
@@ -381,6 +445,109 @@ static void initialise_wifi(void)
     ESP_LOGI(TAG, "wifi_init_sta finished.");
 }
 
+static char *create_state(uint8_t* lightVal,uint8_t size)
+{
+    char* string=NULL;
+
+    cJSON *thingname = NULL;
+    cJSON *group = NULL;
+    cJSON *topic = NULL;
+    cJSON *timestamp = NULL;
+    cJSON *cmd=NULL;
+    cJSON *subcmd=NULL;
+    cJSON *light=NULL;
+    cJSON *circuit=NULL;
+
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL)
+    {   
+        ESP_LOGE(TAG,"create cJSON root failed");
+        goto end;
+    }
+
+    thingname = cJSON_CreateString("5f69b964480ec95b35a28b42");
+    if (thingname == NULL)
+    {
+        ESP_LOGE(TAG,"create cJSON thingname failed");
+        goto end;
+    }
+    cJSON_AddItemToObject(root, "thingname", thingname);
+
+
+
+    topic = cJSON_CreateString("stepiot/state/1259014452121047040/1263376536367665152/5f69b964480ec95b35a28b42");
+    if (topic == NULL)
+    {
+        ESP_LOGE(TAG,"create cJSON topic failed");
+        goto end;
+    }
+    cJSON_AddItemToObject(root, "topic", topic);
+
+    group = cJSON_CreateString("1263376536367665152");
+    if (group == NULL)
+    {
+        ESP_LOGE(TAG,"create cJSON group failed");
+        goto end;
+    }
+    cJSON_AddItemToObject(root, "group", group);
+
+
+    timestamp = cJSON_CreateNumber(xTaskGetTickCount());
+    if (timestamp == NULL)
+    {
+        ESP_LOGE(TAG,"create cJSON timestamp failed");
+        goto end;
+    }
+    cJSON_AddItemToObject(root, "timestamp", timestamp);
+
+
+    cmd = cJSON_CreateArray();
+    if (cmd == NULL)
+    {
+        ESP_LOGE(TAG,"create cJSON cmd failed");
+        goto end;
+    }
+    cJSON_AddItemToObject(root, "cmd", cmd);
+
+    for (int i = 0; i < size; ++i)
+    {
+        subcmd = cJSON_CreateObject();
+        if (subcmd == NULL)
+        {
+            ESP_LOGE(TAG,"create cJSON subcmd failed");
+            goto end;
+        }
+        cJSON_AddItemToArray(cmd, subcmd);
+
+        circuit = cJSON_CreateNumber(i+1);
+        if (circuit == NULL)
+        {
+            ESP_LOGE(TAG,"create cJSON subcmd[circuit] failed");
+            goto end;
+        }
+        cJSON_AddItemToObject(subcmd, "circuit", circuit);
+
+        light = cJSON_CreateNumber(lightVal[i]);
+        if (light == NULL)
+        {
+            ESP_LOGE(TAG,"create cJSON subcmd[light] failed");
+            goto end;
+        }
+        cJSON_AddItemToObject(subcmd, "light", light);
+    }
+
+    string = cJSON_Print(root);
+    if (string == NULL)
+    {
+        ESP_LOGE(TAG,"failed to print root");
+    }
+
+end:
+    cJSON_Delete(root);
+    return string;
+}
+
+
 
 void app_main()
 {
@@ -393,10 +560,6 @@ void app_main()
     ESP_ERROR_CHECK( err );
 
     initialise_wifi();
-    xTaskCreate(&aws_iot_task, "aws_iot_task", 9216, NULL, 5, NULL);
-
-    uint32_t adc_reading = 0;
-    uint32_t voltage = 0;
     /*gpio*/
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -405,29 +568,8 @@ void app_main()
     io_conf.pull_down_en = 1;
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
-    xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 10, NULL);
-
-    check_efuse();
-    adc_init();
-    //Continuously sample ADC1
-    while (1) {
-        //1
-        
-        adc_reading = adc1_get_raw((adc1_channel_t)ADC_DET_1);
-        //Convert adc_reading to voltage in mV
-        voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
-        printf("ADC1:Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
-        //2
-        adc_reading = adc1_get_raw((adc1_channel_t)ADC_DET_2);
-        //Convert adc_reading to voltage in mV
-        voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
-        printf("ADC2:Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
-        //3
-        adc_reading = adc1_get_raw((adc1_channel_t)ADC_DET_3);
-        //Convert adc_reading to voltage in mV
-        voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
-        printf("ADC3:Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+    xTaskCreate(&aws_iot_task, "aws_iot_task", 9216, NULL, 5, NULL);
+    xTaskCreate(adc_task, "adc_task", 2048, NULL, 1, NULL);
+    vTaskSuspend(NULL);
 }
 
